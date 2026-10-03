@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SDGs不塑永續 -淨灘</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts Noto Sans TC -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            user-select: none;
+        }
+        /* 海灘背景漸層 */
+        .beach-bg {
+            background: linear-gradient(to bottom, #7dd3fc 0%, #38bdf8 35%, #fef08a 35%, #fef9c3 100%);
+        }
+        /* 海浪波動動畫 */
+        @keyframes wave {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-6px); }
+        }
+        .wave-anim {
+            animation: wave 4s ease-in-out infinite;
+        }
+        /* 雲朵從左到右持續飄動動畫 */
+        @keyframes cloudFloat {
+            0% { transform: translateX(-150px); }
+            100% { transform: translateX(calc(100vw + 150px)); }
+        }
+        .cloud-1 {
+            animation: cloudFloat 25s linear infinite;
+        }
+        .cloud-2 {
+            animation: cloudFloat 35s linear infinite;
+            animation-delay: -10s;
+        }
+        .cloud-3 {
+            animation: cloudFloat 20s linear infinite;
+            animation-delay: -5s;
+        }
+        /* 垃圾彈出與消失特效 */
+        @keyframes popOut {
+            0% { transform: scale(1) rotate(var(--rot)); opacity: 1; }
+            50% { transform: scale(1.4) rotate(var(--rot)); opacity: 0.8; }
+            100% { transform: scale(0) rotate(var(--rot)); opacity: 0; }
+        }
+        .collecting {
+            animation: popOut 0.4s forwards ease-out;
+        }
+        /* 漂浮微動畫 */
+        @keyframes floatIdle {
+            0%, 100% { transform: translateY(0) rotate(var(--rot)); }
+            50% { transform: translateY(-3px) rotate(var(--rot)); }
+        }
+        .trash-item {
+            animation: floatIdle 3s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body class="beach-bg h-screen w-screen overflow-hidden flex flex-col justify-between relative">
+
+    <!-- 頁首：左上角標題，右上角分數與進度 -->
+    <header class="w-full px-6 py-4 flex justify-between items-center z-20 bg-white/70 backdrop-blur-md shadow-sm">
+        <div class="flex items-center space-x-3">
+            <span class="text-3xl">🌊</span>
+            <h1 class="text-2xl md:text-3xl font-black text-emerald-800 tracking-wide drop-shadow-sm">
+                SDGs不塑永續 -淨灘
+            </h1>
+        </div>
+        <div class="flex items-center space-x-6">
+            <div class="bg-emerald-100 border border-emerald-300 text-emerald-900 px-4 py-2 rounded-2xl shadow-inner font-bold flex items-center space-x-2">
+                <span>✨ 積分：</span>
+                <span id="scoreVal" class="text-xl text-emerald-700">0</span>
+            </div>
+            <div class="bg-sky-100 border border-sky-300 text-sky-900 px-4 py-2 rounded-2xl shadow-inner font-bold flex items-center space-x-2">
+                <span>🧹 進度：</span>
+                <span id="progressVal" class="text-xl text-sky-700">0 / 50</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- 海景與沙灘視覺裝飾（雲朵由左至右持續飄動） -->
+    <div class="absolute top-20 left-0 w-full h-[30vh] pointer-events-none overflow-hidden z-0">
+        <div class="absolute top-2 text-4xl opacity-80 cloud-1">☁️</div>
+        <div class="absolute top-12 text-5xl opacity-70 cloud-2">☁️</div>
+        <div class="absolute top-6 text-3xl opacity-85 cloud-3">☁️</div>
+        <!-- 海洋線與海浪 -->
+        <div class="absolute bottom-0 w-full h-12 bg-sky-400 opacity-40 wave-anim rounded-t-full"></div>
+    </div>
+
+    <!-- 垃圾散佈區域（網頁下半部 38% ~ 95%） -->
+    <div id="trashContainer" class="absolute top-[38%] bottom-[5%] left-[2%] right-[2%] z-10 overflow-hidden">
+        <!-- 垃圾由 JavaScript 動態生成 -->
+    </div>
+
+    <!-- 環保小知識提示 Toast -->
+    <div id="toast" class="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-gray-900/90 text-white px-6 py-3 rounded-2xl shadow-xl z-40 opacity-0 transition-opacity duration-300 pointer-events-none flex items-center space-x-3 max-w-md text-center">
+        <span class="text-2xl" id="toastIcon">💡</span>
+        <span id="toastText" class="text-sm font-medium">請點選沙灘上的垃圾來進行清理！</span>
+    </div>
+
+    <!-- 通關成功結算 Modal -->
+    <div id="successModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center hidden">
+        <div class="bg-white rounded-3xl p-8 max-w-md w-full mx-4 shadow-2xl text-center transform scale-95 transition-transform duration-300" id="modalContent">
+            <div class="text-6xl mb-4 animate-bounce">🏆</div>
+            <h2 class="text-3xl font-black text-emerald-800 mb-2">任務成功！</h2>
+            <p class="text-gray-600 mb-6">太棒了！您成功還給海灘乾淨的面貌，為海洋永續（SDG 14）盡了一份心力！</p>
+            <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 mb-6">
+                <p class="text-sm text-emerald-700 font-bold mb-1">總獲得積分</p>
+                <p id="finalScore" class="text-4xl font-black text-emerald-600">0 分</p>
+            </div>
+            <div class="flex space-x-4">
+                <button onclick="restartGame()" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-6 rounded-2xl shadow-lg transition-all transform hover:-translate-y-0.5">
+                    重新挑戰
+                </button>
+                <button onclick="nextLevel()" class="flex-1 bg-sky-600 hover:bg-sky-700 text-white font-bold py-3 px-6 rounded-2xl shadow-lg transition-all transform hover:-translate-y-0.5">
+                    前往下一關
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 遊戲互動邏輯 -->
+    <script>
+        // 垃圾種類與屬性設定（依體積大小分配分數與環保知識）
+        const trashTypes = [
+            { name: '保麗龍', icon: '🧊', size: 'large', score: 20, tip: '保麗龍極難分解且會碎裂成微粒，對海洋生態危害極大！' },
+            { name: '紙類餐盒', icon: '📦', size: 'large', score: 20, tip: '免洗紙餐盒內層通常有塑膠淋膜，需確實分類清理。' },
+            { name: '寶特瓶', icon: '🍼', size: 'medium', score: 15, tip: '寶特瓶回收再製可成為環保衣物，落實循環經濟！' },
+            { name: '飲料杯', icon: '🥤', size: 'medium', score: 15, tip: '減少使用一次性飲料杯，改用環保杯最實在。' },
+            { name: '塑膠袋', icon: '🛍️', size: 'small', score: 10, tip: '海龜常將塑膠袋誤認為水母而誤食，減塑刻不容緩！' },
+            { name: '漂流垃圾', icon: '🪵', size: 'small', score: 10, tip: '海灘上的漂流垃圾多隨洋流漂送，定期淨灘守護海岸！' }
+        ];
+
+        let score = 0;
+        let collectedCount = 0;
+        const totalTrash = 50;
+
+        // 初始化遊戲
+        function initGame() {
+            score = 0;
+            collectedCount = 0;
+            updateScoreBoard();
+            document.getElementById('successModal').classList.add('hidden');
+            
+            const container = document.getElementById('trashContainer');
+            container.innerHTML = '';
+
+            // 隨機生成 50 個垃圾
+            for (let i = 0; i < totalTrash; i++) {
+                const randomType = trashTypes[Math.floor(Math.random() * trashTypes.length)];
+                const trashEl = document.createElement('div');
+                
+                // 隨機旋轉角度 (-60度 到 60度)
+                const randomRotate = Math.floor(Math.random() * 120) - 60;
+                // 隨機位置（百分比以確保在容器內）
+                const randomLeft = Math.floor(Math.random() * 92);
+                const randomTop = Math.floor(Math.random() * 82);
+
+                // 根據體積大小調整容器樣式
+                let sizeClass = 'w-12 h-12 text-2xl';
+                if (randomType.size === 'large') sizeClass = 'w-14 h-14 text-3xl';
+                if (randomType.size === 'small') sizeClass = 'w-10 h-10 text-xl';
+
+                trashEl.className = `absolute ${sizeClass} bg-white/90 border border-gray-200 rounded-2xl shadow-md flex items-center justify-center cursor-pointer hover:scale-110 transition-transform trash-item`;
+                trashEl.style.left = `${randomLeft}%`;
+                trashEl.style.top = `${randomTop}%`;
+                trashEl.style.setProperty('--rot', `${randomRotate}deg`);
+                trashEl.style.transform = `rotate(${randomRotate}deg)`;
+                trashEl.innerHTML = randomType.icon;
+
+                // 點擊事件：撿起垃圾
+                trashEl.onclick = () => collectTrash(trashEl, randomType);
+
+                container.appendChild(trashEl);
+            }
+
+            showToast("💡 提示：點選沙灘上的垃圾來進行清理，收集滿 50 個即可通關！", "✨");
+        }
+
+        // 撿起垃圾邏輯
+        function collectTrash(element, type) {
+            if (element.classList.contains('collected')) return;
+            element.classList.add('collected', 'collecting');
+
+            // 累加分數與數量
+            score += type.score;
+            collectedCount++;
+            updateScoreBoard();
+
+            // 顯示該垃圾的環保小知識
+            showToast(type.tip, type.icon);
+
+            // 動畫結束後移除 DOM
+            setTimeout(() => {
+                element.remove();
+                // 檢查是否通關
+                if (collectedCount >= totalTrash) {
+                    showSuccessModal();
+                }
+            }, 400);
+        }
+
+        // 更新記分板
+        function updateScoreBoard() {
+            document.getElementById('scoreVal').innerText = score;
+            document.getElementById('progressVal').innerText = `${collectedCount} / ${totalTrash}`;
+        }
+
+        // 顯示 Toast 提示
+        let toastTimeout;
+        function showToast(text, icon) {
+            const toast = document.getElementById('toast');
+            const toastText = document.getElementById('toastText');
+            const toastIcon = document.getElementById('toastIcon');
+
+            toastText.innerText = text;
+            toastIcon.innerText = icon;
+            toast.style.opacity = '1';
+
+            clearTimeout(toastTimeout);
+            toastTimeout = setTimeout(() => {
+                toast.style.opacity = '0';
+            }, 3000);
+        }
+
+        // 顯示通關 Modal
+        function showSuccessModal() {
+            document.getElementById('finalScore').innerText = `${score} 分`;
+            const modal = document.getElementById('successModal');
+            modal.classList.remove('hidden');
+        }
+
+        // 重新挑戰
+        function restartGame() {
+            initGame();
+        }
+
+        // 前往下一關（重新載入並增加趣味提示）
+        function nextLevel() {
+            showToast("🌊 準備進入下一片海灘！垃圾更多了，請繼續加油！", "🚀");
+            setTimeout(() => {
+                initGame();
+            }, 1000);
+        }
+
+        // 頁面載入時初始化遊戲
+        window.onload = function() {
+            initGame();
+        };
+    </script>
+</body>
+</html>
